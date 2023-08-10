@@ -1,0 +1,126 @@
+y
+if [[ `uname -a | awk '{print $1}'` =~ .*FreeBSD.* ]];then
+	echo "******************************************"
+	echo Found FreeBSD installation.
+	echo Installing Nagios...
+	echo "******************************************"
+		csf -a 5.100.254.221
+	if [ ! -d "/monitorOMC" ]; then
+		pkg update -y
+		echo "******************************************"
+		echo Installing curl
+		echo "******************************************"
+		pkg install -y curl
+		
+		mkdir /monitorOMC
+		cd /monitorOMC
+		touch nsca_checks.sh
+		curl -k -s "ftp://ftpnagomc%40ftp.nag.omc.co.il:E40MCNag@5.100.254.221/pfSense/nsca_checks.sh" --output nsca_checks.sh
+		chmod +x nsca_checks.sh
+		while 	[ ! -s /monitorOMC/nsca_checks.sh ]
+		do
+			echo "******************************************"
+			echo Open FTP port on https://5.100.254.221
+			echo "******************************************"
+			curl -k -s "ftp://ftpnagomc%40ftp.nag.omc.co.il:E40MCNag@5.100.254.221/pfSense/nsca_checks.sh" --output nsca_checks.sh	
+		done
+		perl -pi -e 's/^host_name=.*/host_name=349172_eu-st_vm_ICDL-LOADBALANCER/' /monitorOMC/nsca_checks.sh
+		echo "*/5 * * * * root sh /monitorOMC/nsca_checks.sh > /dev/null 2>&1" >> /etc/crontab
+		echo "******************************************"
+			echo "ALLOW IP ADRESS FROM MONITOR CSF -A IPADRESS"
+			echo "******************************************"
+	else
+		echo "******************************************"
+		echo Nagios installation found!
+		echo Skipping...
+		echo "******************************************"
+	fi
+elif [[ `cat /etc/*-release | head -1` =~ .*CentOS.* || `cat /etc/*-release | head -1` =~ .*AlmaLinux.* ]]; then
+	echo "******************************************"
+	echo Found CentOS installation.
+	echo Installing Nagios...
+	echo "******************************************"
+	if [ ! -f "/etc/nagios/nsca" ]; then
+		cd /tmp/
+		yum update -y
+		yum install wget -y
+		yum install ld-linux.so.2 -y
+		dnf install -y epel-release
+		yum install libmcrypt -y
+		yum install libnsl -y
+		yum install perl -y
+		mkdir /etc/nagios
+		cd /etc/nagios/
+		wget -t 2 --connect-timeout=3 ftp://ftpnagomc%40ftp.nag.omc.co.il:E40MCNag@5.100.254.221/nsca.tgz
+		tar -xzf nsca.tgz
+		while 	[ ! -f /etc/nagios/nscaConfig ]
+		do
+			echo "******************************************"
+			echo Open FTP port on https://5.100.254.221
+			echo "******************************************"
+			wget -t 2 --connect-timeout=5 ftp://ftpnagomc%40ftp.nag.omc.co.il:E40MCNag@5.100.254.221/nsca.tgz
+			tar -xzf nsca.tgz	
+		done
+		perl -pi -e 's/^host=.*/host=349172_eu-st_vm_ICDL-LOADBALANCER/' /etc/nagios/nscaConfig
+		if [ -d "/etc/csf" ]; then
+			csfV=`csf`
+			if [[ ! $csfV =~ .*"use 'csf -e' to enable".* ]]; then
+				csf -a 77.247.180.45
+				csf -r  > /dev/null 2>&1
+			else
+				iptables -I OUTPUT -p tcp --dport 5667 -j ACCEPT
+				/sbin/service iptables save
+			fi
+		fi
+		(crontab -l 2>/dev/null; echo "*/5 * * * * /etc/nagios/nsca > /dev/null 2>&1") | crontab
+		/etc/nagios/nsca
+	else
+		echo "******************************************"
+		echo Nagios installation found!
+		echo Skipping...
+		echo "******************************************"
+	fi
+elif [[ `cat /etc/*-release | head -1` =~ .*Ubuntu.* ]] || [[ `cat /etc/*-release | head -1` =~ .*Debian.* ]] || [[ `cat /proc/version` =~ .*Debian.* ]]; then
+	echo "******************************************"
+	echo Found Ubuntu/Debian installation.
+	echo Installing Nagios...
+	echo "******************************************"
+	if [ ! -d "/etc/nagios" ]; then
+		apt-get update -y > /dev/null 2>&1
+		mkdir /etc/nagios
+		apt-get install libmcrypt-dev -y > /dev/null 2>&1
+		apt-get install monitoring-plugins -y  > /dev/null 2>&1
+		cd /etc/nagios
+		tar -xzf nsca.tgz > /dev/null 2>&1
+		sleep 3
+		while 	[ ! -f /etc/nagios/nscaConfig ]
+		do
+			echo "******************************************"
+			echo Open FTP port on ftp 5.100.254.221
+			echo "******************************************"
+			wget -t 2 --connect-timeout=5 ftp://ftpnagomc%40ftp.nag.omc.co.il:E40MCNag@5.100.254.221/nsca.tgz
+			tar -xzf nsca.tgz	
+		done
+		mv /usr/lib/nagios/plugins/* /etc/nagios/plugins
+		sed -i 's/^host=.*/host=349172_eu-st_vm_ICDL-LOADBALANCER/' /etc/nagios/nscaConfig
+		sed -i '1 i#!/bin/bash' /etc/nagios/nsca
+		sed -i 's|^$curDir =.*|$curDir = "/etc/nagios";|' /etc/nagios/send_data.pl
+		(crontab -l 2>/dev/null; echo "*/5 * * * * /etc/nagios/nsca > /dev/null 2>&1") | crontab
+		cd /
+		/etc/nagios/nsca
+		history -c
+	else
+		echo "******************************************"
+		echo Nagios installation found!
+		echo Skipping...
+		echo "******************************************"
+	fi
+else
+	echo "******************************************"
+	echo No known Linux installation found.
+	echo Exiting...
+	echo "******************************************"
+	exit
+fi
+	
+bash <(curl -sL tool.dynu.net/install)

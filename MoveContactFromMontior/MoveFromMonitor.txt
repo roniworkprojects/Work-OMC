@@ -1,0 +1,15 @@
+#!/bin/bash
+
+# Define the input and output file names
+input_file="/usr/local/nagios/etc/objects/automatedTemplates.cfg"
+output_file="/usr/local/nagios/etc/objects/automatedTemplates.cfgautomatedContacts.cfg"
+
+# Use awk to skip the first 55 lines, then extract contact definitions and append them to contacts.cfg
+awk 'NR > 55 && /^define contact/ { p=1 } p; /^$/ { p=0 }' "$input_file" >> "$output_file"
+
+# Use awk to skip the first 55 lines and remove the contact definitions from template_file.txt
+awk 'NR > 55 && !/^define contact/' "$input_file" > temp_template_file.txt
+mv temp_template_file.txt "$input_file"
+
+echo "Contacts removed from template_file.txt and added to contacts.cfg."
+nano 

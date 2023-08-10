@@ -1,0 +1,76 @@
+echo "Adding ip address to allow list"
+csf -a VMIP
+echo "Backing up config file /usr/local/nagios/etc/objects/automatedTemplates.cfg"
+
+if [[ "$VMPHONE" == "" && "$VMEMAIL" == "" ]]; then
+    contacts_line="#contacts\t\t#VMPHONE@sms.inforu.co.il,VMEMAIL"
+elif [[ "$VMEMAIL" == "" ]]; then
+    contacts_line="contacts\t\t$VMPHONE@sms.inforu.co.il"
+elif [[ "$VMPHONE" == "" ]]; then
+    contacts_line="contacts\t\t$VMEMAIL"
+else
+    contacts_line="contacts\t\t$VMPHONE@sms.inforu.co.il,$VMEMAIL"
+fi
+
+echo "Insert server name ('VMNAME') to Nagios config file /usr/local/nagios/etc/objects/templates.cfg"
+if grep -iwq "VMNAME" /usr/local/nagios/etc/objects/templates.cfg || grep -iwq "VMNAME" /usr/local/nagios/etc/objects/automatedTemplates.cfg; then
+    echo "Server name 'VMNAME' found in Nagios config files CHECK ALL FILES /usr/local/nagios/etc/objects/templates.cfg"
+    echo "Skipping..."
+else
+echo "define host {
+       	host_name       VMNAME
+        use     generic-server
+       	display_name    VMNAME
+        alias   VMNAME
+        address VMIP
+        hostgroups      check_ping,nsca_check_cpu,nsca_check_disk,nsca_check_mem
+		$contacts.line
+        contact_groups  OMC - Cloud Services
+        notification_interval   1440
+	notifications_enabled   1r
+}" >> /usr/local/nagios/etc/objects/automatedTemplates.cfg 
+echo " Added template to automatedTemplates file"
+
+echo "Checking for phone number"
+if [[ "$VMPHONE" == "VMPHONE" || "$VMPHONE" == "" ]]; then
+    echo "No Phone Number Added"
+    echo "Skipping"
+else
+    if grep -wn "VMPHONE" /usr/local/nagios/etc/objects/contacts.cfg || grep -wn "VMPHONE" /usr/local/nagios/etc/objects/templates.cfg; then
+        echo "Contact name (Phone Number) 'VMPHONE' found in Nagios config file /usr/local/nagios/etc/objects/contacts.cfg"
+        echo "Skipping..."
+    else
+        echo "Making template for contact"
+        echo "define contact {
+            contact_name    VMPHONE@sms.inforu.co.il
+            use             generic-contact
+            alias           VMPHONE@sms.inforu.co.il
+            host_notifications_enabled      1
+            service_notifications_enabled   1
+            email           VMPHONE@sms.inforu.co.il
+        }" >> /usr/local/nagios/etc/objects/automatedTemplates.cfg
+        echo "Added contact to the template"
+    fi
+fi
+echo "Checking for Mail Adress"
+if [[ "$VMEMAIL" == "VMEMAIL" || "$VMEMAIL" == "" ]]; then
+    echo "No input from the user"
+    echo "Skipping"
+else
+    if grep -iwq "VMEMAIL" /usr/local/nagios/etc/objects/templates.cfg || grep -iwq "VMEMAIL" /usr/local/nagios/etc/objects/contacts.cfg ; then
+        echo "Contact mail 'VMEMAIL' found in Nagios config files - CHECK ALL FILES /usr/local/nagios/etc/objects/templates.cfg"
+        echo "Skipping..."
+    else
+        echo "define contact {
+            contact_name    VMEMAIL
+            use             generic-contact
+            alias           VMEMAIL
+            host_notifications_enabled      1
+            service_notifications_enabled   1
+            email           VMEMAIL
+        }" >> /usr/local/nagios/etc/objects/automatedTemplates.cfg
+    fi
+fi
+echo "Restart Nagios Service..."
+# service nagios restart
+

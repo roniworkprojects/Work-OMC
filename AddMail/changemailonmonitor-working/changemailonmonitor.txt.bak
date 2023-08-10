@@ -1,0 +1,64 @@
+#!/bin/bash
+
+# Replace "template.cfg" with the actual path to your configuration file
+file="/usr/local/nagios/etc/objects/automatedTemplates.cfg"
+search_term="CheckVar"
+new_email="newContact"
+
+echo CheckVar , newContact
+
+# Use grep to find lines containing either the specified name or email
+matching_lines=$(grep -n -E "host_name[[:space:]]+${search_term}|contacts[[:space:]]+.*${search_term}" "$file")
+
+# Checking is newContact has template
+if [[ newContact =~ ^[0-9]+$ ]]; then
+  if grep -wq "newContact" /usr/local/nagios/etc/objects/contacts.cfg || grep -wq "newContact" /usr/local/nagios/etc/objects/templates.cfg || grep -wq "newContact" /usr/local/nagios/etc/objects/automatedTemplates.cfg; then
+        echo "Contact name (Phone Number) 'newContact' found in Nagios config file - CHECK ALL"
+        echo "Skipping..."
+    else
+        echo "Making template for contact"
+        echo "define contact {
+            contact_name    newContact@sms.inforu.co.il
+            use             generic-contact
+            alias           newContact@sms.inforu.co.il
+            host_notifications_enabled      1
+            service_notifications_enabled   1
+            email           newContact@sms.inforu.co.il
+        }" >> /usr/local/nagios/etc/objects/automatedTemplates.cfg
+        echo "Added contact to the template"
+	fi
+else
+  if grep -iwq "newContact" /usr/local/nagios/etc/objects/templates.cfg || grep -iwq "newContact" /usr/local/nagios/etc/objects/contacts.cfg || grep -wq "newContact" /usr/local/nagios/etc/objects/automatedTemplates.cfg; then
+        echo "Contact mail 'newContact' found in Nagios config files - CHECK ALL FILES "
+        echo "Skipping..."
+    else
+        echo "define contact {
+            contact_name    newContact
+            use             generic-contact
+            alias           newContact
+            host_notifications_enabled      1
+            service_notifications_enabled   1
+            email           newContact
+        }" >> /usr/local/nagios/etc/objects/automatedTemplates.cfg
+    fi
+fi
+
+while IFS= read -r line_info; do
+  line_number=$(echo "$line_info" | cut -d ":" -f1)
+  line_content=$(echo "$line_info" | cut -d ":" -f2-)
+  
+  if [[ "$line_content" == *contacts* ]]; then
+    # Check if the email is already in the contacts list
+    if [[ "$line_content" != *"$new_email"* ]]; then
+      # Append the new email to the existing contacts list
+      modified_line="${line_content//contacts/contacts},$new_email"
+      # Use sed to replace the line in the file with the modified one
+      sed -i "${line_number}s|$line_content|$modified_line|" "$file"
+      echo "Email added to the contacts list in line $line_number."
+    else
+      echo "Email already exists in the contacts list in line $line_number."
+    fi
+  else
+    echo "Contacts not found in line $line_number."
+  fi
+done <<< "$matching_lines"
