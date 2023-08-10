@@ -11,7 +11,7 @@ do {
 	$connStatus = ""
 	$pwMon = ""
 	while (!$pwMon) {write-host "Please enter ROOT password for " -foreground "green" -nonewline
-		write-host "monitor.omc.co.il - 77.247.180.45/185.167.99.99" -foreground "Yellow" -backgroundcolor "Black" -nonewline
+		write-host "ip adress" -foreground "Yellow" -backgroundcolor "Black" -nonewline
 		$pwMon = read-host " " -AsSecureString
 		$pwMon = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($pwMon))}
 	write-host "Checking SSH connection..."
