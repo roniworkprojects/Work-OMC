@@ -20,7 +20,7 @@ if [[ `uname -a | awk '{print $1}'` =~ .*FreeBSD.* ]];then
 		while 	[ ! -s /monitorOMC/nsca_checks.sh ]
 		do
 			echo "******************************************"
-			echo Open FTP port on https://5.100.254.221
+			echo Open FTP port on ftp-server
 			echo "******************************************"
 			curl -k -s "FTP SERVER" --output nsca_checks.sh	
 		done
